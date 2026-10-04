@@ -32,7 +32,7 @@ const mood = new MoodModel();
 const behavior = new BehaviorController({ rng: Math.random });
 const player = new AnimationPlayer(CLIPS);
 const mover = new Mover({ x: bounds.w / 2, y: bounds.h - 80, speed: 70, bounds, footprint });
-const audio = new AudioManager({ player: makeBrowserAudio(0.7), cooldownMs: 5000 });
+const audio = new AudioManager({ player: makeBrowserAudio(0.7), cooldownMs: 60000 });
 
 let lastState = behavior.update('content', null, 0);
 player.play(lastState.anim);
@@ -54,6 +54,14 @@ ipcRenderer.on('cat:mute', (_e, m) => audio.setMuted(m));
 const particles = []; // floating emoji effects (hearts, food, zzz)
 let zzzTimer = 0;
 let decisionTimer = 0;
+// Seek attention continuously when happiness is below 40.
+let interactionPause = 0;
+let wasFollowing = false;
+let pointer = null;
+let dragging = false;
+canvas.addEventListener('mousemove', (event) => {
+  pointer = { x: event.clientX, y: event.clientY };
+});
 let prev = performance.now();
 
 function frame(now) {
@@ -64,6 +72,11 @@ function frame(now) {
   // drain one input per frame (priority over autonomous decisions)
   const input = inputQueue.shift() || null;
   if (input) {
+    if (input.type === 'drag-start') dragging = true;
+    if (input.type === 'drag-end') dragging = false;
+    if (input.type !== 'drag-move') {
+      interactionPause = 2.5;
+    }
     if (input.type === 'drag-move') { mover.x = input.x - footprint.w / 2; mover.y = input.y - footprint.h / 2; }
     if (input.type === 'pet') { mood.pet(); spawnHearts(); }
     if (input.type === 'feed') { mood.feed(); spawnFood(); }
@@ -71,18 +84,24 @@ function frame(now) {
     if (input.type === 'sleep') mood.energy = Math.min(mood.energy, 15);
   }
 
+  interactionPause = Math.max(0, interactionPause - dt);
+  const pointerInside = pointer && pointer.x >= 0 && pointer.y >= 0
+    && pointer.x <= bounds.w && pointer.y <= bounds.h;
+  const following = mood.happiness < 40 && !dragging
+    && interactionPause === 0 && !!pointerInside;
+  if (wasFollowing && !following) decisionTimer = 0;
+  wasFollowing = following;
+
   // Decide behavior ~ every 2.5s, or immediately on a forcing input
   decisionTimer -= dt;
   const forcing = !!input && ['drag-start', 'drag-end', 'feed', 'play', 'pet', 'sleep'].includes(input.type);
-  if (forcing || decisionTimer <= 0) {
+  if (!dragging && (forcing || (!following && decisionTimer <= 0))) {
     const m = mood.dominantMood(clock);
     lastState = behavior.update(m, forcing ? input : null, dt);
     player.play(lastState.anim);
     audio.cue(lastState.sound);
-    // Occasional ambient meow when calm — NOT on every walk. ~4% per decision
-    // (a decision is ~every 2.5s) averages a meow roughly once a minute; the
-    // AudioManager cooldown still prevents any bunching.
-    if (!forcing && (lastState.name === 'WANDER' || lastState.name === 'SIT') && Math.random() < 0.04) {
+    // 0.5% per calm decision; repeated sounds are limited to once per minute.
+    if (!forcing && (lastState.name === 'WANDER' || lastState.name === 'SIT') && Math.random() < 0.005) {
       audio.cue('meow');
     }
     decisionTimer = 2.5;
@@ -92,11 +111,28 @@ function frame(now) {
     }
   }
 
+  if (following) {
+    // Stop short of the pointer so the cat does not cover what you are clicking.
+    const dx = pointer.x - (mover.x + footprint.w / 2);
+    const dy = pointer.y - (mover.y + footprint.h / 2);
+    const distance = Math.hypot(dx, dy);
+    if (distance > 90) {
+      mover.setTarget(pointer.x - dx / distance * 90 - footprint.w / 2,
+        pointer.y - dy / distance * 90 - footprint.h / 2);
+      mover.update(dt);
+      if (player.name !== 'walk') player.play('walk');
+      lastState = { name: 'FOLLOW', anim: 'walk', sound: null, moodState: 'active' };
+    } else {
+      if (player.name !== 'sit') player.play('sit');
+      lastState = { name: 'FOLLOW', anim: 'sit', sound: null, moodState: 'resting' };
+    }
+  }
+
   // Advance mood with the behavior's activity state
   mood.tick(dt, clock, lastState.moodState);
 
   // Movement only while wandering
-  if (lastState.name === 'WANDER') mover.update(dt);
+  if (!following && !dragging && lastState.name === 'WANDER') mover.update(dt);
   player.update(dt);
 
   // Floating Zzz while asleep (every ~1.4s)
@@ -147,8 +183,8 @@ function render(dt) {
     const sx = ((clip.col || 0) + f) * sheet.frameW;
     const sy = clip.row * sheet.frameH;
     ctx.save();
-    // Source art faces LEFT, so mirror it when the cat is facing/moving RIGHT.
-    if (mover.facing === 1) {
+    // The bundled side-view art faces RIGHT; mirror it only when moving left.
+    if (mover.facing === -1) {
       ctx.translate(mover.x + footprint.w, mover.y);
       ctx.scale(-1, 1);
       ctx.drawImage(img, sx, sy, sheet.frameW, sheet.frameH, 0, 0, footprint.w, footprint.h);

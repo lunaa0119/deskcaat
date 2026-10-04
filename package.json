@@ -6,7 +6,7 @@
   "scripts": {
     "start": "electron .",
     "test": "jest",
-    "dist": "electron-packager . DeskCat --overwrite --out=dist --app-version=0.1.0"
+    "dist": "electron-packager . DeskCat --overwrite --out=dist --app-version=0.1.0 --ignore='^/DeskCat\\.app($|/)' --ignore='^/test($|/)'"
   },
   "devDependencies": {
     "@electron/packager": "^18.3.6",

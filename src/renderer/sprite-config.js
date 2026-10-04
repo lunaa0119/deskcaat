@@ -1,7 +1,7 @@
 // Frame metadata for the octopusinkus "Cat Pack" sheet:
 //   assets/cats/Cat_Sprite_Sheet_Black.png  (384x288 = 12 cols x 9 rows of 32x32)
-// Frame counts per row were measured from the sheet. Side-view rows face LEFT in
-// the source art; loop.js mirrors them when the cat moves right.
+// Frame counts per row were measured from the sheet. Side-view rows face RIGHT in
+// the source art; loop.js mirrors them when the cat moves left.
 // Clip KEYS (idle/walk/run/sit/lick/paw/yarn/sleep) are referenced by other modules.
 const SPRITES = {
   sheets: {

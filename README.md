@@ -1,4 +1,8 @@
-# 🐾 DeskCat
+# 🐾 deskcaat
+
+此版本基於 [coglabss/deskcat](https://github.com/coglabss/deskcat) 修改。
+目前功能、修改內容及啟動方式請看 [CUSTOMIZATION.md](CUSTOMIZATION.md)。
+以下保留原專案說明作為參考。
 
 A cute, free-roaming desktop pet cat for **Windows & macOS**. It wanders your
 desktop, naps, plays, gets hungry, and reacts to you — pet it, drag it, feed it.

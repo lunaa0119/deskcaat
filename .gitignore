@@ -2,6 +2,8 @@ node_modules/
 dist/
 .superpowers/
 *.log
+.DS_Store
+*.app/
 
 # Third-party assets are downloaded by each user (see README) — not redistributed.
 assets/cats/*

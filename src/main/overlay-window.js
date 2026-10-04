@@ -20,7 +20,8 @@ function createOverlay() {
     },
   });
   win.setAlwaysOnTop(true, 'screen-saver');
-  win.setVisibleOnAllWorkspaces(true);
+  // Include macOS fullscreen browser Spaces, as well as ordinary desktops.
+  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.loadFile(path.join(__dirname, '../renderer/index.html'));
   return win;
 }

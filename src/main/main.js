@@ -9,7 +9,7 @@ const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
-  const store = new Store({ defaults: { muted: false, autostart: true } });
+  const store = new Store({ defaults: { muted: false, autostart: false } });
   const getState = () => ({ muted: store.get('muted'), autostart: store.get('autostart') });
   const setState = (patch) => {
     for (const [k, v] of Object.entries(patch)) store.set(k, v);
